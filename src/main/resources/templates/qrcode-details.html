@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QR Code Details</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+<div class="container mt-5">
+    <a href="/dashboard" class="btn btn-link mb-3"><i class="fas fa-arrow-left me-1"></i> Back to Dashboard</a>
+    <div class="card mx-auto" style="max-width: 400px;">
+        <div class="card-body text-center">
+            <h4 class="card-title mb-3" th:text="${qrCode.name}">QR Code Name</h4>
+            <img th:src="@{${qrCode.imagePath}}" alt="QR Code" class="img-fluid mb-3" style="max-width: 200px; border: 2px solid #e2e8f0;" />
+            <div class="mb-2">
+                <strong>QR Code ID:</strong>
+                <span th:text="${qrCode.id}"></span>
+            </div>
+            <div class="mb-2">
+                <strong>Content:</strong>
+                <div class="text-break small" th:text="${qrCode.content}"></div>
+            </div>
+            <div class="mb-2">
+                <strong>Created At:</strong>
+                <span th:text="${#temporals.format(qrCode.createdAt, 'yyyy-MM-dd HH:mm')}"></span>
+            </div>
+            <div class="mb-2">
+                <strong>Owner:</strong>
+                <span th:text="${qrCode.user != null ? qrCode.user.firstName + ' ' + qrCode.user.lastName : 'N/A'}"></span>
+            </div>
+            <div class="mb-3">
+                <strong>Download:</strong>
+                <a th:href="@{${qrCode.imagePath}}" download class="btn btn-outline-primary btn-sm mt-1">
+                    <i class="fas fa-download me-1"></i> Download
+                </a>
+            </div>
+            <div class="mb-2">
+                <strong>Scan QR Code:</strong>
+                <br>
+                <button class="btn btn-outline-success btn-sm mt-1" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i> Print
+                </button>
+                <button class="btn btn-outline-secondary btn-sm mt-1" onclick="copyQRContent()">
+                    <i class="fas fa-copy me-1"></i> Copy Content
+                </button>
+                <button class="btn btn-outline-info btn-sm mt-1" onclick="shareQRLink()">
+                    <i class="fas fa-share me-1"></i> Share
+                </button>
+            </div>
+            <div class="mb-3">
+                <strong>Actions:</strong>
+                <div class="d-flex flex-wrap gap-2 justify-content-center mt-2">
+                    <a th:href="@{'/dashboard/qr-details/' + ${qrCode.id}}" class="btn btn-info btn-sm">
+                        <i class="fas fa-eye me-1"></i> View
+                    </a>
+                    <button class="btn btn-warning btn-sm" data-bs-toggle="modal" data-bs-target="#renameQRModal" th:attr="data-id=${qrCode.id}">
+                        <i class="fas fa-edit me-1"></i> Rename
+                    </button>
+                    <form th:action="@{'/dashboard/delete-qr/' + ${qrCode.id}}" method="post" class="d-inline">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this QR code?');">
+                            <i class="fas fa-trash me-1"></i> Delete
+                        </button>
+                    </form>
+                    <!-- View All Button -->
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#viewAllQRModal">
+                        <i class="fas fa-list me-1"></i> View All
+                    </button>
+                </div>
+            </div>
+            <!-- Rename QR Code Modal (reused from dashboard) -->
+            <div class="modal fade" id="renameQRModal" tabindex="-1" aria-labelledby="renameQRModalLabel" aria-hidden="true">
+              <div class="modal-dialog">
+                <div class="modal-content">
+                  <form id="renameQRForm" method="post">
+                    <div class="modal-header">
+                      <h5 class="modal-title" id="renameQRModalLabel">Rename QR Code</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                      <div class="mb-3">
+                        <label for="newQRName" class="form-label">New Name</label>
+                        <input type="text" class="form-control" id="newQRName" name="newName" required>
+                      </div>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                      <button type="submit" class="btn btn-primary">Rename</button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <!-- View All QR Codes Modal -->
+            <div class="modal fade" id="viewAllQRModal" tabindex="-1" aria-labelledby="viewAllQRModalLabel" aria-hidden="true">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="viewAllQRModalLabel">All QR Codes</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <table class="table table-bordered table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Content</th>
+                                        <th>Created At</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allQRCodesTableBody">
+                                    <!-- Will be filled dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Settings Modal -->
+            <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="settingsModalLabel">Settings</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <!-- Theme Switcher -->
+                            <div class="form-check form-switch mb-3">
+                                <input class="form-check-input" type="checkbox" id="themeSwitchModal">
+                                <label class="form-check-label" for="themeSwitchModal">Dark Mode</label>
+                            </div>
+                            <!-- Notification Preferences -->
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="checkbox" id="notifSwitchModal" checked>
+                                <label class="form-check-label" for="notifSwitchModal">Enable Notifications</label>
+                            </div>
+                            <!-- Change Password -->
+                            <button class="btn btn-outline-warning btn-sm w-100 mb-2" data-bs-toggle="modal" data-bs-target="#changePasswordModal">
+                                <i class="fas fa-key me-1"></i> Change Password
+                            </button>
+                            <!-- Delete Account -->
+                            <button class="btn btn-outline-danger btn-sm w-100 mb-2" data-bs-toggle="modal" data-bs-target="#deleteAccountModal">
+                                <i class="fas fa-trash me-1"></i> Delete Account
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Settings Modal: Change Password -->
+            <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-labelledby="changePasswordModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="/dashboard/change-password">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="changePasswordModalLabel">Change Password</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label for="currentPassword" class="form-label">Current Password</label>
+                                    <input type="password" class="form-control" id="currentPassword" name="currentPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">New Password</label>
+                                    <input type="password" class="form-control" id="newPassword" name="newPassword" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                                    <input type="password" class="form-control" id="confirmPassword" name="confirmPassword" required>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-warning">Change Password</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <!-- Settings Modal: Delete Account -->
+            <div class="modal fade" id="deleteAccountModal" tabindex="-1" aria-labelledby="deleteAccountModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="/dashboard/delete-account">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteAccountModalLabel">Delete Account</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p class="text-danger">Are you sure you want to delete your account? This action cannot be undone.</p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger">Delete Account</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                // Rename modal: set form action and input value
+                var renameModal = document.getElementById('renameQRModal');
+                if(renameModal) {
+                    renameModal.addEventListener('show.bs.modal', function (event) {
+                      var button = event.relatedTarget;
+                      var qrId = button.getAttribute('data-id');
+                      var form = document.getElementById('renameQRForm');
+                      form.action = '/dashboard/rename-qr/' + qrId;
+                    });
+                }
+                window.copyQRContent = function() {
+                    const content = document.querySelector('[th\\:text="${qrCode.content}"]').innerText;
+                    navigator.clipboard.writeText(content).then(function() {
+                        alert('QR code content copied to clipboard!');
+                    });
+                }
+                window.shareQRLink = function() {
+                    const url = window.location.href;
+                    if (navigator.share) {
+                        navigator.share({
+                            title: document.title,
+                            text: 'Check out this QR code!',
+                            url: url
+                        });
+                    } else {
+                        navigator.clipboard.writeText(url).then(function() {
+                            alert('QR code link copied to clipboard!');
+                        });
+                    }
+                }
+                // Dynamically load QR codes when the modal is shown
+                var viewAllQRModal = document.getElementById('viewAllQRModal');
+                if(viewAllQRModal) {
+                    viewAllQRModal.addEventListener('show.bs.modal', function () {
+                        fetch('/dashboard/my-qrcodes')
+                            .then(response => response.json())
+                            .then(data => {
+                                const tbody = document.getElementById('allQRCodesTableBody');
+                                tbody.innerHTML = '';
+                                if (data.length === 0) {
+                                    tbody.innerHTML = '<tr><td colspan="4" class="text-center">No QR codes found.</td></tr>';
+                                } else {
+                                    data.forEach(qr => {
+                                        const row = document.createElement('tr');
+                                        row.innerHTML = `
+                                            <td>${qr.name}</td>
+                                            <td>${qr.content}</td>
+                                            <td>${qr.createdAt ? new Date(qr.createdAt).toLocaleString() : ''}</td>
+                                            <td><a href="/dashboard/qr-details/${qr.id}" class="btn btn-info btn-sm">View</a></td>
+                                        `;
+                                        tbody.appendChild(row);
+                                    });
+                                }
+                            });
+                    });
+                }
+                // Theme Switcher (Settings Modal)
+                const themeSwitchModal = document.getElementById('themeSwitchModal');
+                if (themeSwitchModal) {
+                    themeSwitchModal.addEventListener('change', function() {
+                        if (this.checked) {
+                            document.body.classList.add('bg-dark', 'text-light');
+                        } else {
+                            document.body.classList.remove('bg-dark', 'text-light');
+                        }
+                        // Persist preference
+                        localStorage.setItem('darkMode', this.checked ? '1' : '0');
+                    });
+                    // On load, set theme from localStorage
+                    if (localStorage.getItem('darkMode') === '1') {
+                        themeSwitchModal.checked = true;
+                        document.body.classList.add('bg-dark', 'text-light');
+                    }
+                }
+                // Notification Toggle (Settings Modal)
+                const notifSwitchModal = document.getElementById('notifSwitchModal');
+                if (notifSwitchModal) {
+                    notifSwitchModal.addEventListener('change', function() {
+                        alert(this.checked ? 'Notifications enabled!' : 'Notifications disabled!');
+                        localStorage.setItem('notifications', this.checked ? '1' : '0');
+                    });
+                    // On load, set notifications from localStorage
+                    if (localStorage.getItem('notifications') === '0') {
+                        notifSwitchModal.checked = false;
+                    }
+                }
+            });
+            </script>
+        </div>
+    </div>
+</div>
+<!-- Settings Button (floating, bottom right) -->
+<button class="btn btn-primary position-fixed" style="bottom: 2rem; right: 2rem; z-index: 1050; border-radius: 50%; width: 56px; height: 56px;" data-bs-toggle="modal" data-bs-target="#settingsModal" title="Settings">
+    <i class="fas fa-cog fa-lg"></i>
+</button>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
